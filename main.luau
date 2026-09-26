@@ -12,7 +12,7 @@ local buttonDownDepth = button.Size.X * 0.47 -- how deep the button should be pr
 local buttonDown = buttoncf * CFrame.new(-buttonDownDepth, 0, 0) -- the position of the button when it's pressed 
 local buttonPressed = false -- so it can check without having to be based on whetehr or not the position is exactly the original or exactly buttondown
 local launching = false -- to check if the minigame is started
-local menu = plr.PlayerGui.GUI.Menu -- the menu where the player picks the mode
+local menu = plr.PlayerGui:WaitForChild("GUI"):WaitForChild("Menu") -- the menu where the player picks the mode
 local rsv = game:GetService("RunService")
 local Debris = game:GetService("Debris")
 local twn = game:GetService("TweenService")
@@ -31,15 +31,15 @@ function explObstacle.new() -- create the obstacle
 	self.obj.CanCollide = false
 	self.obj.Parent = game.Workspace:WaitForChild("Obstacles")
 	self.obj.Name = "Obstacle" -- and set all of its properties
-	
+
 	activeObst[self.obj] = self -- add it as an active obstacle so it can be deflected later
-	
+
 	self.mesh = meshes[math.random(1,#meshes)] -- pick a mesh from the folder
 	self.mesh = self.mesh:Clone() 
 	self.mesh.Parent = self.obj -- clone it into the part
-	
+
 	self.movingConnect = nil -- to disconnect later
-	
+
 	return self -- return the class' properties
 end
 
@@ -55,7 +55,7 @@ end
 local function bezier(subj, dur, P0, P1, P2, completed: () -> ()) -- bezier curve for the obstacle and later on the craters
 	local t = 0 -- elapsed time
 	local connect -- so it cna be disconnected later and passed to explObstacle.movingConnect
-	
+
 	connect = rsv.PreRender:Connect(function(dtr) -- run every frame
 		t += math.clamp(dtr / dur, 0, 1) -- add the amount of time elapsed to t and divide it by the duration so that it gets added slower/faster and meet the intended duration
 		if t >= 1 then -- if the duration is completed
@@ -89,7 +89,7 @@ end
 
 function explObstacle:Launch(origin, target, dur, impactFunc: () -> ()) -- method to launch the obstacle to target
 	local halfway = origin:Lerp(target, 0.5) + Vector3.new(0,75,0) -- lerp the halfway point which will be P1 and add 75 studs to its height to make it actually curve
-	
+
 	self.movingConnect = bezier(self.obj, dur, origin, halfway, target, function() -- launch the object and set finally set movingConnect to the connection so it can be disconnected later
 		twn:Create(self.obj,TweenInfo.new(0.25,Enum.EasingStyle.Quad), {Transparency = 1, Size = self.obj.Size * 2}):Play() -- make the object fade out on impact
 		if impactFunc then
@@ -116,7 +116,7 @@ local function canvasSides(canvas: BasePart) -- pick one of the sides of a part,
 	local x = canvas.Position.X + canvas.Size.X/2*picksign() -- run the pick sign function so it's, in this instance, the leftmost or rightmost position of the part
 	local y = canvas.Position.Y + canvas.Size.Y/2*picksign()
 	local z = canvas.Position.Z + canvas.Size.Z/2*picksign()
-	
+
 	return {x,y,z} -- and return its results
 end
 
@@ -158,7 +158,7 @@ local function crater(subj: BasePart, amount, timeToLand) -- make a crater when 
 				e.Material = mat
 				e.Color = col -- and make the debris match the object that was hit
 				e.Parent = workspace
-				
+
 				local canvr = canvasRange(canvas)
 				local canvs = canvasSides(canvas)
 				local positionz = {
@@ -206,7 +206,7 @@ local function startLaunching(target,timeToHit) -- start launching the bombs or 
 		if launching ~= true then break end -- if launching has been stopped in the meantime then break
 		local range = canvasRange(evw) -- the range of the evil wall, so the range objects will be thrown from within
 		local origin = Vector3.new(range[1],range[2],evw.Position.Z) -- construct the vector 3 with the position within the range gotten, but keep Z since it doesn't make a difference anyways
-		
+
 		local obstacleMeta = explObstacle.new() -- the obstacle's class
 		local obstacle = obstacleMeta.obj -- the actual object that will be used externally
 		obstacleMeta:Launch(origin, target, timeToHit, function() -- launch the obstacle
@@ -240,10 +240,12 @@ end
 local function stopLaunching() -- to stop launching the obstacles or bombs
 	if launching == true then -- only run if they're being launched
 		launching = false -- no longer being launched
-		if workspace:FindFirstChild("Obstacles"):GetChildren()[1] ~= nil then -- if there is an obstacle in the folder 
+		local obstacleFolder = workspace:FindFirstChild("Obstacles")
+		if obstacleFolder and obstacleFolder:GetChildren()[1] ~= nil then -- if there is an obstacle in the folder 
 			for _,e in ipairs(workspace.Obstacles:GetChildren()) do -- for each one of them
 				activeObst[e].movingConnect:Disconnect() -- disconnect the moving connection
 				activeObst[e].movingConnect = nil -- and set it to nil
+				activeObst[e] = nil -- set this to nil as well
 				e:Destroy() -- destroy them
 			end
 		end
@@ -254,6 +256,10 @@ local function stopLaunching() -- to stop launching the obstacles or bombs
 	if craterPositions ~= nil then -- if the craterPositions connection exists
 		craterPositions:Disconnect() -- disconnect
 		craterPositions = nil -- and clean it
+	end
+	if baseplateLava ~= nil then -- if baseplateLava is connected
+		baseplateLava:Disconnect() -- disconnect it
+		baseplateLava = nil -- and set it to nil
 	end
 	twn:Create(button,TweenInfo.new(0.5, Enum.EasingStyle.Quad), {CFrame = buttoncf, Color = buttoncol}):Play() -- and tween the button to its original psoition
 	buttonPressed = false -- and change the variable so it can be checked
@@ -273,7 +279,7 @@ local function emerge() -- the tower emerging function
 			soundsv:PlayLocalSound(game.ReplicatedStorage.Brick) -- and play a brick sound
 			task.wait(0.1)
 		end
-		
+
 	end
 end
 
