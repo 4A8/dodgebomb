@@ -20,7 +20,7 @@ local soundsv = game:GetService("SoundService")
 local uisv = game:GetService("UserInputService")
 
 local activeObst = {} -- used later for the :Deflect() method
-local explObstacle = {} -- used for the class
+local explObstacle = {} -- used for the class (I decided to implement it this way mainly because deflecting the obstacle later would be much easier)
 explObstacle.__index = explObstacle -- read explObstacle when it's called
 local meshes = game.ReplicatedStorage.Meshes:GetChildren() -- the meshes that the obstacle cna have
 function explObstacle.new() -- create the obstacle
