@@ -2,10 +2,11 @@
 
 -- A bomb dodging minigame with 2 modes
 local ReplicatedStorage = game:GetService("ReplicatedStorage") -- the replicated storage service
+local workspace = game:GetService("Workspace") -- shorter alias
 local plr = game:GetService("Players").LocalPlayer -- local player
 local char = plr.Character or plr.CharacterAdded:Wait() -- Wait until the character is loaded
 local hum = char:WaitForChild("Humanoid") -- the humanoid
-local button = game.Workspace.ButtonStand:WaitForChild("Button") -- the button that will be used for activating the game
+local button = workspace.ButtonStand:WaitForChild("Button") -- the button that will be used for activating the game
 local buttoncf = button.CFrame -- the button's cframe, so it can return to it's original position
 local buttoncol = button.Color -- its color, same as before
 local buttonDownDepth = button.Size.X * 0.47 -- how deep the button should be pressed
@@ -13,7 +14,7 @@ local buttonDown = buttoncf * CFrame.new(-buttonDownDepth, 0, 0) -- the position
 local buttonPressed = false -- so it can check without having to be based on whetehr or not the position is exactly the original or exactly buttondown
 local launching = false -- to check if the minigame is started
 local tickSound = ReplicatedStorage.Tick -- the ticking sound that will be used for the jenga mode
-local tower = game.Workspace:WaitForChild("Tower") -- the tower for the jenga mode
+local tower = workspace:WaitForChild("Tower") -- the tower for the jenga mode
 local menu = plr.PlayerGui:WaitForChild("GUI"):WaitForChild("Menu") -- the menu where the player picks the mode
 local rsv = game:GetService("RunService")
 local Debris = game:GetService("Debris")
@@ -31,7 +32,7 @@ function explObstacle.new() -- create the obstacle
 	self.obj.Size = Vector3.new(4,4,4)
 	self.obj.Anchored = true
 	self.obj.CanCollide = false
-	self.obj.Parent = game.Workspace:WaitForChild("Obstacles")
+	self.obj.Parent = workspace:WaitForChild("Obstacles")
 	self.obj.Name = "Obstacle" -- and set all of its properties
 
 	activeObst[self.obj] = self -- add it as an active obstacle so it can be deflected later
@@ -101,7 +102,7 @@ function explObstacle:Launch(origin, target, dur, impactFunc: () -> ()) -- metho
 			impactFunc() -- again, run a function on completion/impact if one has been proivded
 		end
 		if not self.obj.Parent then return end -- return if the obj has no parent (if the player clicked the button to stop launching or died and destroyed it)
-		self.obj.Parent = game.Workspace.Inactive -- move it to an inactive folder to not interfere with the :Deflect() method later
+		self.obj.Parent = workspace.Inactive -- move it to an inactive folder to not interfere with the :Deflect() method later
 		task.wait(0.5) -- wait a little before destroying so the explosion can have its effect
 		activeObst[self.obj] = nil -- remove it from the activeObst table
 		self.obj:Destroy() -- then destroy
@@ -127,8 +128,8 @@ end
 
 
 function explObstacle:Deflect() -- method to deflect the obstacle
-	self.obj.Parent = game.Workspace.Inactive -- move it to inactive so that the method can be used again after a new obstacle is launched
-	local positions = canvasRange(game.Workspace.EvilWall.Deflection) -- deflect it to a position somewhere around the evil wall
+	self.obj.Parent = workspace.Inactive -- move it to inactive so that the method can be used again after a new obstacle is launched
+	local positions = canvasRange(workspace.EvilWall.Deflection) -- deflect it to a position somewhere around the evil wall
 	self.movingConnect:Disconnect() -- disconnect the previous launch which was towards the player
 	self.rotateConnect:Disconnect() -- disconnect the rotation as well
 	self.movingConnect = nil
@@ -146,7 +147,7 @@ local function createCraterDebris(canvas: BasePart, size: Vector3, amount: numbe
 		debrisPart.Size = size / 2 -- make it half the size of the obstacle
 		debrisPart.Material = material -- inherit the material
 		debrisPart.Color = color -- and color of the surface that it hit
-		debrisPart.Parent = game.Workspace
+		debrisPart.Parent = workspace
 
 		local randomPosition = canvasRange(canvas)
 		local edgePosition = canvasSides(canvas)
@@ -176,7 +177,7 @@ local function crater(subj: BasePart, amount, timeToLand) -- create debris when 
 		canvas.Size = subjSize + Vector3.new(12, -3.5, 12) -- size it relative to the obstacle
 		canvas.Position = Vector3.new(subj.Position.X, other.Position.Y + other.Size.Y / 2, subj.Position.Z) -- position of where the object hit and surface of the hit object
 		canvas.Name = "Canvas"
-		canvas.Parent = game.Workspace
+		canvas.Parent = workspace
 		canvas.Anchored = true -- so it doesn't move from the explosion or somethign
 		canvas.Transparency = 1 -- shouldn't be seen
 		canvas.CanCollide = false -- or collided with, since it's only a helper object
@@ -187,7 +188,7 @@ local function crater(subj: BasePart, amount, timeToLand) -- create debris when 
 	craterConnections[connection] = true -- track this until it hits or launching stops
 end
 
-local evw = game.Workspace:WaitForChild("EvilWall") -- the wall where the obstacles are launched from 
+local evw = workspace:WaitForChild("EvilWall") -- the wall where the obstacles are launched from 
 
 local plrWon -- used for the jenga mode
 local baseplateLava -- same as above
@@ -196,7 +197,7 @@ local function startLaunching(target,timeToHit) -- start launching the bombs or 
 	local target0 = target -- will be used to differentiate between the varying target posiitons, for example the player moving or the different blocks of the jenga tower
 	if target0 == "jenga" then -- the target is set to this when the player activates jenga mode
 		plrWon = false -- set the plrWon variable to tell when the player has won
-		baseplateLava = game.Workspace.Baseplate.Touched:Connect(function(otherPart) -- connect to the baseplate's touch event to kill the player if they fall off the tower
+		baseplateLava = workspace.Baseplate.Touched:Connect(function(otherPart) -- connect to the baseplate's touch event to kill the player if they fall off the tower
 			if otherPart.Parent:FindFirstChild("Humanoid") and not plrWon then -- if what touched the baseplate is a player and the player hasn't won yet
 				otherPart.Parent:FindFirstChild("Humanoid").Health = 0 -- kill them
 			end
@@ -251,9 +252,9 @@ end
 local function stopLaunching() -- to stop launching the obstacles or bombs
 	if launching == true then -- only run if they're being launched
 		launching = false -- no longer being launched
-		local obstacleFolder = game.Workspace:FindFirstChild("Obstacles")
+		local obstacleFolder = workspace:FindFirstChild("Obstacles")
 		if obstacleFolder and obstacleFolder:GetChildren()[1] ~= nil then -- if there is an obstacle in the folder 
-			for _,e in ipairs(game.Workspace.Obstacles:GetChildren()) do -- for each one of them
+			for _,e in ipairs(workspace.Obstacles:GetChildren()) do -- for each one of them
 				activeObst[e].movingConnect:Disconnect() -- disconnect the moving connection
 				activeObst[e].rotateConnect:Disconnect() -- and the rotation connection
 				activeObst[e].movingConnect = nil -- and set it to nil
@@ -348,7 +349,7 @@ end)
 
 uisv.InputBegan:Connect(function(input, gpe) -- when an input begins
 	if input.KeyCode == Enum.KeyCode.F and not gpe then -- and it's the F key
-		local obstacle = activeObst[game.Workspace.Obstacles:GetChildren()[1]] -- get the active obstacle
+		local obstacle = activeObst[workspace.Obstacles:GetChildren()[1]] -- get the active obstacle
 		if obstacle then -- if it exists
 			soundsv:PlayLocalSound(ReplicatedStorage.Sword) -- play a sword sound
 			obstacle:Deflect() -- and deflect the obstacle
