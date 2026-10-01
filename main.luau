@@ -137,52 +137,54 @@ function explObstacle:Deflect() -- method to deflect the obstacle
 end
 
 
-local craterPositions -- used to disconnect later when it stops launching
-local function crater(subj: BasePart, amount, timeToLand) -- make a crater when subj hits something, with `amount` of debris, and the debris lands in timeToLand
-	local col
-	local mat -- will be the color and material of the part it hit
-	local subjSize = subj.Size -- the size of the subj that hits something
-	subj.Anchored = false -- so .Touched can be triggered
-	local alreadyRan = false -- so it doesn't create a crater each time .touched is triggered
-	craterPositions = subj.Touched:Connect(function(other) -- when the subject hits its target
-		if not alreadyRan then -- if it hasn't ran already
-			alreadyRan = true -- set it to true
-			col = other.Color -- inherit the properties of what has been hit
-			mat = other.Material
-			local canvas = Instance.new("Part") -- where the debris will land
-			canvas.Size = subj.Size + Vector3.new(12,-3.5,12) -- scale to how big the object that hit something was
-			canvas.Position = Vector3.new(subj.Position.X,other.Position.Y+other.Size.Y/2,subj.Position.Z) -- set the position to where the subject hit but the Y to the top of what has been hit
-			canvas.Name = "Canvas" 
-			canvas.Parent = game.Workspace -- parent to workspace so the part actually has a use
-			canvas.Anchored = true -- anchor it so it doesn't get moved by the explosion or smth
-			canvas.Transparency = 1 -- make it invisible
-			canvas.CanCollide = false -- and uncollideable since it's just there to dictate where the debris will land
-			for i = 1, amount, 1 do -- for every time the amount of debris needed isn't met create one piece
-				task.wait() -- so the computer doesn't explode by trying to run eveyrthing at once
-				local e = Instance.new("Part") -- create the debris
-				e.Position = canvas.Position -- set its position to where the canvas was made
-				e.Size = subjSize/2 -- scale it with the thing that hit something and make it half the size
-				e.Material = mat
-				e.Color = col -- and make the debris match the object that was hit
-				e.Parent = game.Workspace
+local craterConnections = {} -- hit listeners will be kept here so stopLaunching can disconnect them
+local function createCraterDebris(canvas: BasePart, size: Vector3, amount: number, timeToLand, material, color)
+	for _ = 1, amount do -- create debris until the amount is met
+		task.wait() -- so they don't all try to run at once
+		local debrisPart = Instance.new("Part") -- create one piece
+		debrisPart.Position = canvas.Position -- start it at the canvas
+		debrisPart.Size = size / 2 -- make it half the size of the obstacle
+		debrisPart.Material = material -- inherit the material
+		debrisPart.Color = color -- and color of the surface that it hit
+		debrisPart.Parent = game.Workspace
 
-				local canvr = canvasRange(canvas)
-				local canvs = canvasSides(canvas)
-				local positionz = {
-					Vector3.new(canvr[1],canvas.Position.Y,canvs[3]), -- either goes to a random position on one of the canvas' X axis edges
-					Vector3.new(canvs[1],canvas.Position.Y,canvr[3]) -- or to a random position on a Z axis edge
-				}
-				local pos = positionz[math.random(1,2)] -- pick one of them
-				bezier(e, timeToLand, canvas.Position, (canvas.Position+pos)/2+Vector3.new(0,25,0), pos) -- bezier curve the debris to their target positions
-				rotate(e, timeToLand, 4) -- and rotate it (but a little more slightly)
-				task.delay(timeToLand,function() -- fade out the debris 0.25s after landing without yielding
-					twn:Create(e, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {Transparency = 1}):Play()
-				end)
-				Debris:AddItem(e,timeToLand+0.25) -- and destroy the debris after it's faded out
-			end
-			canvas:Destroy() -- destroy the canvas since it's not used anymore
-		end
+		local randomPosition = canvasRange(canvas)
+		local edgePosition = canvasSides(canvas)
+		local targetOptions = {
+			Vector3.new(randomPosition[1], canvas.Position.Y, edgePosition[3]), -- random position on the X edge
+			Vector3.new(edgePosition[1], canvas.Position.Y, randomPosition[3]), -- or the Z edge
+		}
+		local target = targetOptions[math.random(1, #targetOptions)] -- choose one of the chosen locations
+		bezier(debrisPart, timeToLand, canvas.Position, (canvas.Position + target) / 2 + Vector3.new(0, 25, 0), target) -- animate the debris to the chosen target
+		rotate(debrisPart, timeToLand, 4) -- and rotate it for a realistic kinda effect
+		task.delay(timeToLand, function() -- make it fade out without yielding
+			twn:Create(debrisPart, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {Transparency = 1}):Play()
+		end)
+		Debris:AddItem(debrisPart, timeToLand + 0.25) -- remove it after the fade
+	end
+end
+
+local function crater(subj: BasePart, amount, timeToLand) -- create debris when subj hits a surface
+	local subjSize = subj.Size -- store the size so it can be used for the debris size
+	subj.Anchored = false -- because 2 anchored parts don't trigger Touched
+	local connection
+	connection = subj.Touched:Connect(function(other) -- run once when the obstacle hits something
+		connection:Disconnect() -- ignore any later touches
+		craterConnections[connection] = nil -- remove the listener from the table so it doesn't try to get disconnected unnecessarily
+
+		local canvas = Instance.new("Part") -- helps define the location where the debris will land
+		canvas.Size = subjSize + Vector3.new(12, -3.5, 12) -- size it relative to the obstacle
+		canvas.Position = Vector3.new(subj.Position.X, other.Position.Y + other.Size.Y / 2, subj.Position.Z) -- position of where the object hit and surface of the hit object
+		canvas.Name = "Canvas"
+		canvas.Parent = game.Workspace
+		canvas.Anchored = true -- so it doesn't move from the explosion or somethign
+		canvas.Transparency = 1 -- shouldn't be seen
+		canvas.CanCollide = false -- or collided with, since it's only a helper object
+
+		createCraterDebris(canvas, subjSize, amount, timeToLand, other.Material, other.Color) -- create <amount> pieces of debris with the other part's properties
+		canvas:Destroy() -- remove the helper object
 	end)
+	craterConnections[connection] = true -- track this until it hits or launching stops
 end
 
 local evw = game.Workspace:WaitForChild("EvilWall") -- the wall where the obstacles are launched from 
@@ -227,7 +229,7 @@ local function startLaunching(target,timeToHit) -- start launching the bombs or 
 				expl.BlastPressure = 500000 -- otherwise just have it as the default
 			end
 			expl.Position = obstacle.Position -- set the explosion to be where the obstacle is
-			crater(obstacle, 5, 0.5) -- and make the crater
+			crater(obstacle, 6, 0.5) -- and make the crater
 		end)
 	end
 end
@@ -264,9 +266,9 @@ local function stopLaunching() -- to stop launching the obstacles or bombs
 	if plrWon == false then -- if plrWon is false, meaning that the jenga mode has been initialized to set it
 		plrWon = true -- set it to true
 	end
-	if craterPositions ~= nil then -- if the craterPositions connection exists
-		craterPositions:Disconnect() -- disconnect
-		craterPositions = nil -- and clean it
+	for connection in pairs(craterConnections) do -- disconnect every crater waiting for a hit
+		connection:Disconnect()
+		craterConnections[connection] = nil -- and remove it from the tracking set
 	end
 	if baseplateLava ~= nil then -- if baseplateLava is connected
 		baseplateLava:Disconnect() -- disconnect it
