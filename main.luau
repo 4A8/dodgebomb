@@ -79,7 +79,7 @@ end
 local function rotate(subj, dur, rot) -- rotate a part to give it a more realistic launching look
 	local t = 0 -- same as before
 	local connect -- ^
-	connect = rsv.PreSimulation:Connect(function(dtr)
+	connect = rsv.PreSimulation:Connect(function(dtr) -- used presimulation instead of prerender so it doesn't rotate faster on higher framerates
 		t += math.clamp(dtr / dur, 0, 1)
 		if t >= 1 then
 			connect:Disconnect()
