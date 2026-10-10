@@ -164,7 +164,7 @@ local function createCraterDebris(canvas: BasePart, size: Vector3, amount: numbe
 			Vector3.new(edgePosition[1], canvas.Position.Y, randomPosition[3]), -- or the Z edge
 		}
 		local target = targetOptions[math.random(1, #targetOptions)] -- choose one of the chosen locations
-		local impulseForce = (target - debrisPart.Position).Unit * 25 + Vector3.new(0, 65, 0) -- a vector towards the chosen location multiplied by 150, with 350 added so that the debris goes upwards as if it was caused by a powerful impact
+		local impulseForce = (target - debrisPart.Position).Unit * 25 + Vector3.new(0, 65, 0) -- a vector towards the chosen location multiplied by 25, with 65 added to the Y axis so that the debris goes upwards as if it was caused by a powerful impact
 		debrisPart:ApplyImpulse(impulseForce * debrisPart.AssemblyMass) -- launch it and scale with the part's mass
 		debrisPart:ApplyAngularImpulse(Vector3.new(25,25,25)*picksign()) -- and rotate it 
 		task.delay(timeToLand, function() -- make it fade out after timeToLand without yielding
