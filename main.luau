@@ -86,14 +86,14 @@ end
 local function rotate(subj, dur, rot) -- rotate a part to give it a more realistic launching look
 	local t = 0 -- same as before
 	local connect -- ^
-	connect = rsv.PreSimulation:Connect(function(dtr) -- used presimulation instead of prerender so it doesn't rotate faster on higher framerates
+	connect = rsv.PreRender:Connect(function(dtr) -- run every frame
 		t += math.clamp(dtr / dur, 0, 1)
 		if t >= 1 then
 			connect:Disconnect()
 			connect = nil
 		end
 
-		subj.CFrame *= CFrame.Angles(math.rad(rot),math.rad(rot),math.rad(rot)) -- multiply the current CFrame by a new CFrame that has the rotation
+		subj.CFrame *= CFrame.fromAxisAngle(Vector3.new(1,1,1), math.rad(rot * dtr)) -- multiply the current CFrame by the rotation multiplied by dtr so it's consistent across framerates
 
 	end)
 	return connect -- used for explObstacle.rotateConnect so it can be disconnected later
@@ -114,7 +114,7 @@ function explObstacle:Launch(origin, target, dur, impactFunc: () -> ()) -- metho
 		activeObst[self.obj] = nil -- remove it from the activeObst table
 		self.obj:Destroy() -- then destroy
 	end)
-	self.rotateConnect = rotate(self.obj, dur, 5) -- rotate while launching for the aforementioned effect
+	self.rotateConnect = rotate(self.obj, dur, 450) -- rotate while launching for the aforementioned effect
 end
 
 
